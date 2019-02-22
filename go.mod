@@ -1,1 +1,1 @@
-module gofbp
+module protolambda.com/gofbp
