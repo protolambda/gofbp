@@ -58,6 +58,8 @@ func (n *BasicNodeImpl) OnError(err error) {
 // Parents are a special type of node: they can have 1 or more children nodes.
 type Parent interface {
 	Node
+	// Retrieve a child from a parent by its ID. Return nil if the child ID is unknown to the parent.
+	GetChild(id NodeID) Node
 	// Add child to the parent.
 	// Check parent implementation if it auto-removes child from old parent.
 	// Note: a node may only have 1 parent node.

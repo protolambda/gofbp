@@ -20,6 +20,14 @@ func NewErrorCatcher(id NodeID) *ErrorCatcher {
 	return ec
 }
 
+func (ec *ErrorCatcher) GetChild(id NodeID) Node {
+	if id == ec.Child.ID() {
+		return ec.Child
+	} else {
+		return nil
+	}
+}
+
 func (ec *ErrorCatcher) AddChild(node Node) {
 	if ec.Child != nil {
 		ec.Child.SetParent(nil)

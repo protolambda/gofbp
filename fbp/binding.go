@@ -4,8 +4,8 @@ package fbp
 //  - read-channel (in) of the destination of the edge
 //  - write-channel (out) of the source the edge
 // With a newly created channel. The channel should be closed by the writing source.
-func Bind(src MsgOut, dst MsgIn, cap uint) {
-	BindRaw(src.MsgOut(), dst.MsgIn(), cap)
+func Bind(src MsgWriter, dst MsgReader, cap uint) {
+	BindRaw(src.MsgWritePort(), dst.MsgReadPort(), cap)
 }
 
 // Bind two channel ports directly. I.e. init a new channel, and overwrite the in and out ports.

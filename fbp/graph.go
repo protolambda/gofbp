@@ -10,8 +10,12 @@ type Graph struct {
 func NewGraph(id NodeID) *Graph {
 	g := new(Graph)
 	g.NodeID = id
-	g.nodes = make(map[NodeID]Node)
+	g.Init()
 	return g
+}
+
+func (g *Graph) Init() {
+	g.nodes = make(map[NodeID]Node)
 }
 
 func (g *Graph) CollectNodes(scope Scope, out *[]ScopedNode) {
@@ -22,6 +26,10 @@ func (g *Graph) CollectNodes(scope Scope, out *[]ScopedNode) {
 			ng.CollectNodes(newScope, out)
 		}
 	}
+}
+
+func (g *Graph) GetChild(id NodeID) Node {
+	return g.nodes[id]
 }
 
 func (g *Graph) AddChild(node Node) {
