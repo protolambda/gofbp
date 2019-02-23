@@ -7,10 +7,10 @@ type MsgReader interface {
 }
 
 // A simple implementation of MsgIn, to be embedded/added to your node structs.
-type Sink struct {
+type NodeInput struct {
 	In <-chan Msg
 }
 
-func (s *Sink) MsgReadPort() *<-chan Msg {
-	return &s.In
+func (ni *NodeInput) MsgReadPort() *<-chan Msg {
+	return &ni.In
 }

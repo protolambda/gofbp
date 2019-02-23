@@ -13,8 +13,8 @@ import (
 
 type AbcComponent struct {
 	id fbp.NodeID
-	fbp.Sink
-	fbp.Source
+	fbp.NodeInput
+	fbp.NodeOutput
 }
 
 func NewAbcComponent(id fbp.NodeID) *AbcComponent {

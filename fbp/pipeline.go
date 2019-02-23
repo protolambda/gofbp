@@ -6,8 +6,8 @@ import "errors"
 // Nodes in the graph are processed through the order.
 type Pipeline struct {
 	Graph
-	Source
-	Sink
+	NodeOutput
+	NodeInput
 }
 
 // Creates a new pipeline, with the same given capacity for each hop,
@@ -17,7 +17,7 @@ func NewPipeLine(id NodeID, cap uint, nodes ...Node) (*Pipeline, error) {
 	p.NodeID = id
 	p.Init()
 
-	var w MsgWriter = &p.Source
+	var w MsgWriter = &p.NodeOutput
 	for _, item := range nodes {
 		p.AddChild(item)
 		itemR, ok := item.(MsgReader)
@@ -33,7 +33,7 @@ func NewPipeLine(id NodeID, cap uint, nodes ...Node) (*Pipeline, error) {
 		w = itemW
 	}
 	// Bind last output of pipeline items to pipeline output.
-	Bind(w, &p.Sink, cap)
+	Bind(w, &p.NodeInput, cap)
 
 	// no errors, pipeline is complete.
 	return p, nil

@@ -7,15 +7,15 @@ type MsgWriter interface {
 }
 
 // A simple implementation of MsgOut, to be embedded/added to your node structs.
-type Source struct {
+type NodeOutput struct {
 	Out chan<- Msg
 }
 
 // Sources need to be closed to clean up resources (i.e. the channel used for the communication)
-func (s *Source) Close() {
-	close(s.Out)
+func (no *NodeOutput) Close() {
+	close(no.Out)
 }
 
-func (s *Source) MsgWritePort() *chan<- Msg {
-	return &s.Out
+func (no *NodeOutput) MsgWritePort() *chan<- Msg {
+	return &no.Out
 }
