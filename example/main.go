@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"protolambda.com/gofbp"
+	"protolambda.com/gofbp/fbp"
 )
 
 // --------------- testing things out
 
 
 type AbcComponent struct {
-	id gofbp.NodeID
-	gofbp.Sink
-	gofbp.Source
+	id fbp.NodeID
+	fbp.Sink
+	fbp.Source
 }
 
-func NewAbcComponent(id gofbp.NodeID) *AbcComponent {
+func NewAbcComponent(id fbp.NodeID) *AbcComponent {
 	abc := &AbcComponent{id: id}
 	return abc
 }
 
-func (abc *AbcComponent) ID() gofbp.NodeID {
+func (abc *AbcComponent) ID() fbp.NodeID {
 	return abc.id
 }
 
@@ -48,16 +48,16 @@ func main() {
 
 	foo := NewAbcComponent("FOO")
 	bar := NewAbcComponent("BAR")
-	var in chan<- gofbp.Msg
-	var out <-chan gofbp.Msg
-	gofbp.BindRaw(&in, &foo.In, 1)
-	gofbp.Bind(foo, bar, 1)
-	gofbp.BindRaw(&bar.Out, &out, 1)
-	g := gofbp.NewGraph("foobar")
+	var in chan<- fbp.Msg
+	var out <-chan fbp.Msg
+	fbp.BindRaw(&in, &foo.In, 1)
+	fbp.Bind(foo, bar, 1)
+	fbp.BindRaw(&bar.Out, &out, 1)
+	g := fbp.NewGraph("foobar")
 
 	// TODO bigger example graph + small ascii viz
 
-	ec := gofbp.NewErrorCatcher("error_zone_1")
+	ec := fbp.NewErrorCatcher("error_zone_1")
 
 	// TODO generate test input, pipe into input channel
 	for {
