@@ -69,26 +69,26 @@ func (m *FilterByDivisorMiddleware) Run() {
 	}
 }
 
-type EventMiddleware struct {
+type EventTranslator struct {
 	fbp.BasicNodeImpl
 	*fbp.NodeInput
 	*fbp.NodeOutput
 	event fbp.Msg
 }
 
-func NewEventMiddleware(id fbp.NodeID, event fbp.Msg) *EventMiddleware {
-	m := new(EventMiddleware)
-	m.NodeID = id
-	m.NodeInput = fbp.Input(id, "in")
-	m.NodeOutput = fbp.Output(id, "out")
-	m.event = event
-	return m
+func NewEventTranslator(id fbp.NodeID, event fbp.Msg) *EventTranslator {
+	et := new(EventTranslator)
+	et.NodeID = id
+	et.NodeInput = fbp.Input(id, "in")
+	et.NodeOutput = fbp.Output(id, "out")
+	et.event = event
+	return et
 }
 
-func (m *EventMiddleware) Run() {
-	for range m.In {
+func (et *EventTranslator) Run() {
+	for range et.In {
 		// simply embed it in an event.
-		m.Out <- m.event
+		et.Out <- et.event
 	}
 }
 
@@ -117,6 +117,8 @@ func (ng *NumberGenerator) Run() {
 		} else {
 			// remove signal
 			<-ng.Stop.In
+			// To test out exit timeout / force exit:
+			//time.Sleep(100 * time.Second)
 			// send done signal
 			ng.Done.Out <- "stopped"
 			// stop generating
@@ -129,6 +131,7 @@ type TakeN struct {
 	fbp.BasicNodeImpl
 	*fbp.NodeInput
 	*fbp.NodeOutput
+	Done *fbp.NodeOutput
 	Amount uint64
 }
 
@@ -136,18 +139,26 @@ func NewTakeN(id fbp.NodeID, amount uint64) *TakeN {
 	tn := new(TakeN)
 	tn.NodeID = id
 	tn.NodeInput = fbp.Input(id, "in")
-	tn.NodeOutput = fbp.Output(id, "in")
+	tn.NodeOutput = fbp.Output(id, "out")
+	tn.Done = fbp.Output(id, "done")
 	tn.Amount = amount
 	return tn
 }
 
 func (tn *TakeN) Run() {
 	i := uint64(0)
-	for range tn.In {
+	for item := range tn.In {
+		// count current in
 		i++
+		// stop running when we already took N messages.
+		if i > tn.Amount {
+			tn.Done.Out <- "complete"
+			return
+		}
+		tn.Out <- item
+		// Check if we can stop before waiting for next item.
 		if i >= tn.Amount {
-			// stop running when we took N messages.
-			tn.NodeOutput.Out <- "complete"
+			tn.Done.Out <- "complete"
 			return
 		}
 	}
@@ -203,12 +214,10 @@ func NewOsSignal(id fbp.NodeID, sig os.Signal) *OsSignal {
 func (sl *OsSignal) Run() {
 	exit := make(chan os.Signal)
 	signal.Notify(exit, sl.Sig)
-	s := <-exit
-	if s == os.Interrupt {
-		sl.Out <- "interrupt"
-	} else {
-		sl.Out <- "kill"
-	}
+	// wait for exit
+	<-exit
+	// make output aware
+	sl.Out <- "interrupt"
 }
 
 func main() {
@@ -229,7 +238,7 @@ func main() {
 	 */
 	numbers := NewNumberGenerator("numbers")
 	p(numbers)
-	numbersSlow := NewSleeper("numbers_slow", 100 * time.Millisecond, false)
+	numbersSlow := NewSleeper("numbers_slow", 10 * time.Millisecond, false)
 	p(numbersSlow)
 	bind(numbers, numbersSlow)
 
@@ -258,15 +267,15 @@ func main() {
 
 	// map to events
 	// Yes3, No5: fizz
-	fizz := NewEventMiddleware("to_fizz", "fizz")
+	fizz := NewEventTranslator("to_fizz", "fizz")
 	p(fizz)
 	bind(div3div5.Filtered, fizz)
 	// No3, Yes5: buzz
-	buzz := NewEventMiddleware("to_buzz", "buzz")
+	buzz := NewEventTranslator("to_buzz", "buzz")
 	p(buzz)
 	bind(div5, buzz)
 	// Yes3, Yes5: fizzbuzz
-	fizzbuzz := NewEventMiddleware("to_fizzbuzz", "fizzbuzz")
+	fizzbuzz := NewEventTranslator("to_fizzbuzz", "fizzbuzz")
 	p(fizzbuzz)
 	bind(div3div5, fizzbuzz)
 	// No3, No5: #number
@@ -280,18 +289,26 @@ func main() {
 	bind(fizzbuzz, merged.AddInput("fizzbuzz"))
 	bind(div5.Filtered, merged.AddInput("normal"))
 
-	// Print merged output
+	/*
+		END FIZZBUZZ
+	 */
+	take100 := NewTakeN("take100", 100)
+	p(take100)
+	bind(merged, take100)
+
+	// Print output
 	outputPrinter := NewPrintMiddleware("output_printer")
 	p(outputPrinter)
-	bind(merged, outputPrinter)
+	bind(take100, outputPrinter)
+
+	// After printing we are not interested in the values anymore, drain them.
+	drain := fbp.NewDrain("drain")
+	p(drain)
+	bind(outputPrinter, drain)
 
 	/*
 		STOP/CLOSE HANDLING
 	 */
-
-	endCondition := NewTakeN("end_condition", 100)
-	p(endCondition)
-	bind(outputPrinter, endCondition)
 
 	gracefulStopSignal := NewOsSignal("graceful_stop", os.Interrupt)
 	p(gracefulStopSignal)
@@ -299,29 +316,33 @@ func main() {
 	// Try to graciously stop:
 	gracefulExitOptions := fbp.NewMergeTwo("end_cases")
 	p(gracefulExitOptions)
-	bind(endCondition, gracefulExitOptions.InA)
+	bind(take100.Done, gracefulExitOptions.InA)
 	bind(gracefulStopSignal, gracefulExitOptions.InB)
+	// Use a MergeN to add more graceful-exit options
 
 	exitHandlers := fbp.NewSplitTwo("exit_handling")
 	p(exitHandlers)
 	bind(gracefulExitOptions, exitHandlers)
 
 	// Timeout the exit handling
-	timeout := NewSleeper("timeout", 5*time.Second, true)
+	timeoutDelay := NewSleeper("timeout_delay", 5*time.Second, true)
+	p(timeoutDelay)
+	bind(exitHandlers.OutA, timeoutDelay)
+
+	// Try adding a delay to the "stopped" event. If it's not soon enough, the program will exit because of this exit.
+	timeout := NewEventTranslator("timeout", "graceful_exit_timeout")
 	p(timeout)
-	bind(exitHandlers.OutA, timeout)
+	bind(timeoutDelay, timeout)
 
 	// wait for end case, close input
 	bind(exitHandlers.OutB, numbers.Stop)
 
-	forceStopSignal := NewOsSignal("force_stop", os.Kill)
-	p(forceStopSignal)
-
 	exitCases := fbp.NewMergeN("exit_cases")
 	p(exitCases)
 	bind(timeout, exitCases.AddInput("timeout"))
-	bind(forceStopSignal, exitCases.AddInput("force_stop"))
 	bind(numbers.Done, exitCases.AddInput("graceful"))
+	// More force-exit cases can be added like this:
+	// bind(otherSignal, exitCases.AddInput("other_stop"))
 
 	exit := fbp.Input("exit", "exit")
 	bind(exitCases, exit)

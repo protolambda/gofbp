@@ -27,7 +27,9 @@ func (sn *SplitN) AddOutput(id PortID) *NodeOutput {
 func (sn *SplitN) Run() {
 	for item := range sn.In {
 		for _, out := range sn.Outputs {
-			out.Out <- item
+			go func(m Msg) {
+				out.Out <- m
+			}(item)
 		}
 	}
 }

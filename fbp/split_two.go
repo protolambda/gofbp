@@ -21,8 +21,14 @@ func NewSplitTwo(id NodeID) *SplitTwo {
 }
 
 func (st *SplitTwo) Run() {
-	for item := range st.In {
+	sendA := func(item Msg) {
 		st.OutA.Out <- item
+	}
+	sendB := func(item Msg) {
 		st.OutB.Out <- item
+	}
+	for item := range st.In {
+		go sendA(item)
+		go sendB(item)
 	}
 }
