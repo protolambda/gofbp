@@ -170,8 +170,57 @@ func (m *FilterByDivisorMiddleware) Run() {
 Alternatively, you can implement `MsgReader` and `MsgWriter` interfaces yourself,
  for rare use-cases where you need more dynamic access to requests for the in/out-puts of a node.
 
+### Error handling
+
+See `fbp/error_catcher.go`. Work in progress.
+
+Collect/handle errors through minimal `OnError(error)` interface.
+Nodes are free to implement handling anyway they want.
+
+Some examples:
+- Default: propagate to parent node, panic otherwise.
+- Recommended, "error zones": Catch (propagated) errors in a node,
+   and put the errors back in the graph through error-dedicated outputs.
+- Handle the error through channels not related to the fbp graph.
+- Handle errors with callbacks
+- Just log them / communicate with external source
+- Ignore
+- Panic
+
+### Compound nodes
+
+Grouping/compounding/nesting, you can do it with the `Parent interface`: `Add`/`Get`/`Remove`-Node are the basics.
+Each node can only have one parent.
+
+There are two main use cases:
+
+1. (sub)-graphs. Encapsulation!
+2. wrapping. You may just want to give some collection (or single node) some extra managed functionality.
+
+## Contributing
+
+Contributions welcome, get in touch on Twitter, or just create an issue/PR on the GitHub repo.
+
+## Roadmap/motivation
+
+This project is *just for fun* (Go pun :smile:).
+I'm experimenting with the idea of flow-based models in implementations of blockchain-related software.
+E.g. ETH 2.0 requires block, attestation, exit, transaction, deposit, etc. processing.
+At some point you're thinking more about data flow than processing, at which point FBP starts to become interesting.
+
+Feature wishlist (stars for difficulty/awesomeness):
+
+- :star: Improved graph building (i.e. collect process nodes and bonds)
+- :star: :star: Visualize graphs
+- :star: :star: More utility node types
+- :star: :star: :star: Real-time visualization of graph throughput. (Put a node between every regularly created bond, and monitor+visualize throughput).
+- :star: :star: :star: Extra package with common out-of-the-box node types. E.g. a logger, OS-signal source, etc.
+- :star: :star: :star: :star: Implement cross-device bridges, to create distributed graphs.
+- :star: :star: :star: :star: Implement bridges to deploy FBP models to cloud-functions (Google supports Go :smile:)
+- :star: :star: :star: :star: :star: Dynamic visual graph composing.
+- :star: :star: :star: :star: :star: Decentralized graphs, a.k.a. a network of blockchain nodes, but internally implemented as a graph as well. 
 
 ## License
 
-See `LICENSE` file.
+MIT, see `LICENSE` file.
 
