@@ -22,11 +22,6 @@ func (no *NodeOutput) OwnerID() NodeID {
 	return no.Owner
 }
 
-// Sources need to be closed to clean up resources (i.e. the channel used for the communication)
-func (no *NodeOutput) Close() {
-	close(no.Out)
-}
-
 func (no *NodeOutput) MsgWritePort() NodePort {
 	return no
 }

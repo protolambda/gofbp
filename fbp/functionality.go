@@ -6,6 +6,7 @@ type Process interface {
 }
 
 // Nodes that implement a Closeable can be stopped and cleaned-up (commonly at end of graph-execution-time)
+// Useful to close all generators in a graph by just closing the graph.
 type Closeable interface {
 	Close()
 }

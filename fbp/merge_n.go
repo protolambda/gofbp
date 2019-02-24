@@ -19,6 +19,13 @@ func NewMergeN(id NodeID) *MergeN {
 	return mn
 }
 
+// Add input (ignored if added after running)
+func (mn *MergeN) AddInput(id PortID) *NodeInput {
+	input := Input(mn.NodeID, id)
+	mn.Inputs = append(mn.Inputs, input)
+	return input
+}
+
 func (mn *MergeN) Run() {
 	var wg sync.WaitGroup
 	wg.Add(len(mn.Inputs))
