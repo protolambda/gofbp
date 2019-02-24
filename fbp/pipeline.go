@@ -1,40 +1,27 @@
 package fbp
 
-import "errors"
-
-// A pipeline process is a graph with an input and an output.
-// Nodes in the graph are processed through the order.
-type Pipeline struct {
-	Graph
-	NodeOutput
-	NodeInput
+type MsgForward interface {
+	MsgReader
+	MsgWriter
 }
 
 // Creates a new pipeline, with the same given capacity for each hop,
 //  and will setup nodes to have process messages in given order. (through their default read and write ports)
-func NewPipeLine(id NodeID, cap uint, nodes ...Node) (*Pipeline, error) {
-	p := new(Pipeline)
-	p.NodeID = id
-	p.Init()
-
-	var w MsgWriter = &p.NodeOutput
-	for _, item := range nodes {
-		p.AddChild(item)
-		itemR, ok := item.(MsgReader)
-		if !ok {
-			return nil, errors.New("Item: "+string(item.ID())+" in pipeline"+string(p.NodeID)+" has no default output")
-		}
-		// bind to previous output
-		Bind(w, itemR, cap)
-		itemW, ok := item.(MsgWriter)
-		if !ok {
-			return nil, errors.New("Item: "+string(item.ID())+" in pipeline"+string(p.NodeID)+" has no default output")
-		}
-		w = itemW
+func Pipeline(cap uint, nodes ...MsgForward) (MsgReader, MsgWriter, []Bond) {
+	if len(nodes) == 0 {
+		return nil, nil, []Bond{}
 	}
-	// Bind last output of pipeline items to pipeline output.
-	Bind(w, &p.NodeInput, cap)
+	if len(nodes) == 1 {
+		return nodes[0], nodes[0], []Bond{}
+	}
+
+	bonds := make([]Bond, len(nodes)-1, len(nodes)-1)
+
+	for i := 0; i < len(nodes)-1; i++ {
+		// bind to next input
+		bonds[i] = Bind(nodes[i], nodes[i+1], cap)
+	}
 
 	// no errors, pipeline is complete.
-	return p, nil
+	return nodes[0], nodes[len(bonds)], bonds
 }

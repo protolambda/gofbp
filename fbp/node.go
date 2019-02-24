@@ -1,10 +1,15 @@
 package fbp
 
-// ID of a node, simply embed it into a struct to give it ID functionality as part of implementing the Node interface.
+// ID of a node, simply embed it into a struct to give it ID functionality
+// as part of implementing the Node interface.
 type NodeID string
 
 func (id NodeID) ID() NodeID {
 	return id
+}
+
+func (id NodeID) String() string {
+	return string(id)
 }
 
 // The base is a child: every node should be able to be embedded into a parent.
@@ -28,11 +33,15 @@ func (n *BasicChildImpl) SetParent(p Parent) {
 	n.parent = p
 }
 
+type WithID interface {
+	// returns the ID of the node
+	ID() NodeID
+}
+
 // A node is really just an item with an identity (ID), and possibly a parent.
 type Node interface {
 	Child
-	// returns the ID of the node
-	ID() NodeID
+	WithID
 }
 
 // The most common node implementation: ID, parent relationship, propagate errors to parent.
