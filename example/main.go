@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"protolambda.com/gofbp/fbp"
+	"protolambda.com/gofbp/fbp/routing"
 	"time"
 )
 
@@ -290,7 +291,7 @@ func main() {
 	// (nothing to do) Numbers output to div5.Filtered
 
 	// Merge channels
-	merged := fbp.NewMergeN("merged")
+	merged := routing.NewMergeN("merged")
 	p(merged)
 	bind(fizz, merged.AddInput("fizz"))
 	bind(buzz, merged.AddInput("buzz"))
@@ -311,7 +312,7 @@ func main() {
 	bind(take100, outputPrinter)
 
 	// After printing we are not interested in the values anymore, drain them.
-	drain := fbp.NewDrain("drain")
+	drain := routing.NewDrain("drain")
 	p(drain)
 	bind(outputPrinter, drain)
 
@@ -323,13 +324,13 @@ func main() {
 	p(gracefulStopSignal)
 
 	// Try to graciously stop:
-	gracefulExitOptions := fbp.NewMergeTwo("end_cases")
+	gracefulExitOptions := routing.NewMergeTwo("end_cases")
 	p(gracefulExitOptions)
 	bind(take100.Done, gracefulExitOptions.InA)
 	bind(gracefulStopSignal, gracefulExitOptions.InB)
 	// Use a MergeN to add more graceful-exit options
 
-	exitHandlers := fbp.NewSplitTwo("exit_handling")
+	exitHandlers := routing.NewSplitTwo("exit_handling")
 	p(exitHandlers)
 	bind(gracefulExitOptions, exitHandlers)
 
@@ -346,7 +347,7 @@ func main() {
 	// wait for end case, close input
 	bind(exitHandlers.OutB, numbers.Stop)
 
-	exitCases := fbp.NewMergeN("exit_cases")
+	exitCases := routing.NewMergeN("exit_cases")
 	p(exitCases)
 	bind(timeout, exitCases.AddInput("timeout"))
 	bind(numbers.Done, exitCases.AddInput("graceful"))

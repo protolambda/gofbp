@@ -1,21 +1,23 @@
-package fbp
+package routing
+
+import "protolambda.com/gofbp/fbp"
 
 type MergeTwo struct {
-	BasicNodeImpl
+	fbp.BasicNodeImpl
 
 	// single output
-	*NodeOutput
+	*fbp.NodeOutput
 
-	InA *NodeInput
-	InB *NodeInput
+	InA *fbp.NodeInput
+	InB *fbp.NodeInput
 }
 
-func NewMergeTwo(id NodeID) *MergeTwo {
+func NewMergeTwo(id fbp.NodeID) *MergeTwo {
 	mt := new(MergeTwo)
 	mt.NodeID = id
-	mt.InA = Input(id, "in_a")
-	mt.InB = Input(id, "in_b")
-	mt.NodeOutput = Output(id, "out")
+	mt.InA = fbp.Input(id, "in_a")
+	mt.InB = fbp.Input(id, "in_b")
+	mt.NodeOutput = fbp.Output(id, "out")
 	return mt
 }
 

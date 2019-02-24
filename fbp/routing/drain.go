@@ -1,17 +1,19 @@
-package fbp
+package routing
+
+import "protolambda.com/gofbp/fbp"
 
 type Drain struct {
-	BasicNodeImpl
+	 fbp.BasicNodeImpl
 
 	// single input
-	*NodeInput
+	*fbp.NodeInput
 
 }
 
-func NewDrain(id NodeID) *Drain {
+func NewDrain(id fbp.NodeID) *Drain {
 	st := new(Drain)
 	st.NodeID = id
-	st.NodeInput = Input(id, "in")
+	st.NodeInput = fbp.Input(id, "in")
 	return st
 }
 
