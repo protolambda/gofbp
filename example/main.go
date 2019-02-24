@@ -69,26 +69,29 @@ func (m *FilterByDivisorMiddleware) Run() {
 	}
 }
 
-type EventTranslator struct {
+type MapperFn func(m fbp.Msg) fbp.Msg
+
+type Mapper struct {
 	fbp.BasicNodeImpl
 	*fbp.NodeInput
 	*fbp.NodeOutput
-	event fbp.Msg
+	Fn MapperFn
 }
 
-func NewEventTranslator(id fbp.NodeID, event fbp.Msg) *EventTranslator {
-	et := new(EventTranslator)
-	et.NodeID = id
-	et.NodeInput = fbp.Input(id, "in")
-	et.NodeOutput = fbp.Output(id, "out")
-	et.event = event
-	return et
+// Simple function-mapping node
+func NewMapper(id fbp.NodeID, f MapperFn) *Mapper {
+	ma := new(Mapper)
+	ma.NodeID = id
+	ma.NodeInput = fbp.Input(id, "in")
+	ma.NodeOutput = fbp.Output(id, "out")
+	ma.Fn = f
+	return ma
 }
 
-func (et *EventTranslator) Run() {
-	for range et.In {
+func (ma *Mapper) Run() {
+	for item := range ma.In {
 		// simply embed it in an event.
-		et.Out <- et.event
+		ma.Out <- ma.Fn(item)
 	}
 }
 
@@ -151,13 +154,13 @@ func (tn *TakeN) Run() {
 		// count current in
 		i++
 		// stop running when we already took N messages.
-		if i > tn.Amount {
+		if i >= tn.Amount {
 			tn.Done.Out <- "complete"
 			return
 		}
 		tn.Out <- item
 		// Check if we can stop before waiting for next item.
-		if i >= tn.Amount {
+		if i + 1 >= tn.Amount {
 			tn.Done.Out <- "complete"
 			return
 		}
@@ -229,6 +232,8 @@ func main() {
 		processes = append(processes, pro)
 	}
 
+	// Try changing the capacity from 1 to 10:
+	//  nodes will not have to weight for their outputs to be processed, and can buffer some work.
 	bind := func(src fbp.MsgWriter, dst fbp.MsgReader) {
 		bonds = append(bonds, fbp.Bind(src, dst, 1))
 	}
@@ -238,6 +243,9 @@ func main() {
 	 */
 	numbers := NewNumberGenerator("numbers")
 	p(numbers)
+
+	// Try changing this to a nanoseconds, and you will see the concurrency in effect.
+	// (Also changes bond capacity for bigger effect)
 	numbersSlow := NewSleeper("numbers_slow", 10 * time.Millisecond, false)
 	p(numbersSlow)
 	bind(numbers, numbersSlow)
@@ -267,15 +275,15 @@ func main() {
 
 	// map to events
 	// Yes3, No5: fizz
-	fizz := NewEventTranslator("to_fizz", "fizz")
+	fizz := NewMapper("to_fizz", func(m fbp.Msg) fbp.Msg { return fmt.Sprintf("fizz (%d)", m)})
 	p(fizz)
 	bind(div3div5.Filtered, fizz)
 	// No3, Yes5: buzz
-	buzz := NewEventTranslator("to_buzz", "buzz")
+	buzz := NewMapper("to_buzz", func(m fbp.Msg) fbp.Msg { return fmt.Sprintf("buzz (%d)", m)})
 	p(buzz)
 	bind(div5, buzz)
 	// Yes3, Yes5: fizzbuzz
-	fizzbuzz := NewEventTranslator("to_fizzbuzz", "fizzbuzz")
+	fizzbuzz := NewMapper("to_fizzbuzz", func(m fbp.Msg) fbp.Msg { return fmt.Sprintf("fizzbuzz (%d)", m)})
 	p(fizzbuzz)
 	bind(div3div5, fizzbuzz)
 	// No3, No5: #number
@@ -292,6 +300,7 @@ func main() {
 	/*
 		END FIZZBUZZ
 	 */
+	 // We only want the first 100, i.e. 0...99
 	take100 := NewTakeN("take100", 100)
 	p(take100)
 	bind(merged, take100)
@@ -330,7 +339,7 @@ func main() {
 	bind(exitHandlers.OutA, timeoutDelay)
 
 	// Try adding a delay to the "stopped" event. If it's not soon enough, the program will exit because of this exit.
-	timeout := NewEventTranslator("timeout", "graceful_exit_timeout")
+	timeout := NewMapper("timeout", func(m fbp.Msg) fbp.Msg { return "graceful_exit_timeout"})
 	p(timeout)
 	bind(timeoutDelay, timeout)
 
